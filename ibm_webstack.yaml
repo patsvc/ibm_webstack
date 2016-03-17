@@ -1,0 +1,822 @@
+heat_template_version: 2013-05-23
+
+description: >
+  A document-based template to configure IBM Web Stack comprising, IHS, WebSphere Dmgr and managed node, DB2 HADR
+
+parameters:
+
+############################
+# Server parameters
+############################
+  
+  key_name:
+    type: string
+    description: SSH Key to access the instance using
+    default: "sethjump"
+    
+  flavor:
+    type: string
+    description: Flavor to be used for compute instance
+    default: "c2.m8.s40"
+
+  network_id:
+    type: string
+    description: Network ID
+    default: "private"
+    
+  availability_zone:
+    type: string
+    description: 'Name of availability zone in which to create the instance'
+    default: 'lon02'
+    
+  image_id:
+    type: string
+    description: OS Image to deploy onto
+    default: "ubuntu"  # rhel6.5_ico_23Sep2015
+    
+############################
+# Salt Parameters
+############################
+
+  salt_master_address:
+    type: string
+    description: Hostname/IP address of the salt-master
+    default: 192.168.0.34
+    
+  salt_api_user:
+    type: string
+    description: The user connecting to Salt API
+    default: saltauth
+
+  salt_api_pass:
+    type: string
+    description: Password for connecting to Salt API
+    hidden: True
+    default: pM0dularc
+     
+  salt_environment:
+    type: string
+    description: The environment the nodes are part of
+    default: test
+    constraints:
+      - allowed_values:
+        - dev
+        - test
+        - prod
+
+############################
+# Server names
+############################
+
+  host_name_was_dmgr:
+    type: string
+    description: Minion name, '_' is not allowed in minion name, you can use '-' instead
+    default: ibm-was-v855-dmgr
+
+  host_name_was_node:
+    type: string
+    description: Minion name, '_' is not allowed in minion name, you can use '-' instead
+    default: ibm-was-v855-node
+
+  host_name_ihs:
+    type: string
+    description: Minion name, '_' is not allowed in minion name, you can use '-' instead
+    default: ibm-was-v855-ihs
+    
+  host_name_db2_hadr_primary:
+    type: string
+    description: Primary hostname
+    default: hadr-primary
+    
+  host_name_db2_hadr_secondary:
+    type: string
+    description: Secondary hostname
+    default: hadr-secondary
+
+############################
+# WebSphere parameters
+############################
+
+  was_admin_gid:
+    type: string
+    description: group id for wasadmin
+    default: wasgrp
+
+  was_admin_home:
+    type: string
+    description: home directory of wasadmin
+    default: /home/wasadmin
+
+  was_admin_username:
+    type: string
+    description: username for wasadmin
+    default: wasadmin
+
+  was_admin_password:
+    type: string
+    description: password for wasadmin
+    default: P@ssw0rd
+
+  was_install_dir:
+    type: string
+    description: Install directory of websphere
+    default: /opt/IBM/WebSphere/AppServer
+
+  was_profile_dir:
+    type: string
+    description: Profile directory of websphere node
+    default: /opt/IBM/WebSphere/AppServer/profiles
+
+  im_install_dir:
+    type: string
+    description: Install directory of InstallationManager
+    default: /opt/IBM/InstallationManager
+
+  im_shared_dir:
+    type: string
+    description: Shared directory of InstallationManager
+    default: /opt/IBM/IMShared
+
+  was_java7_enabled:
+    type: string
+    description: Select enable java7 or not
+    default: true
+
+  was_fixpack:
+    type: string
+    description: Was fixpack version, 2digits only
+    default: '08'
+
+  was_java_fixpack:
+    type: string
+    description: java fixpack version
+    default: '7.1.3.10_0001'
+
+  was_sdk_32bit:
+    type: string
+    description: sdk feature, can select 32 bit or 64 bit
+    default: false
+
+  was_sdk_64bit:
+    type: string
+    description: sdk feature, can select 32 bit or 64 bit
+    default: true
+
+  was_security_admin_user:
+    type: string
+    description: web console admin user name
+    default: wasadmin
+
+  was_security_admin_password:
+    type: string
+    description: web console admin password
+    default: Zaq12wsX
+
+  was_dmgr_profile_name:
+    type: string
+    description: dmgr profile name
+    default: dmgr01
+
+  was_dmgr_cell_name:
+    type: string
+    description: dmgr cell name
+    default: cell01
+
+  was_dmgr_node_name:
+    type: string
+    description: dmgr node name
+    default: dmgrNode01
+
+  was_nodeagent_profile_name:
+    type: string
+    description: nodeagent profile name
+    default: node01
+
+  was_nodeagent_node_name:
+    type: string
+    description: nodeagent node name
+    default: mngdNode01
+
+############################
+# DB2 parameters
+############################
+
+  db2_cluster_name:
+    type: string
+    description: Name of DB2 cluster
+    default: SAF-db2cluster
+  db2_database_name:
+    type: string
+    description: Database name
+    default: tsatest
+  db2_primary_port:
+    type: string
+    description: Primary replication port
+    default: 55001
+  db2_secondary_port:
+    type: string
+    description: Secondary replication port
+    default: 55003
+  public_network_id:
+    type: string
+    description: Generated for floating IP
+    default: 'TODO'
+
+parameter_groups:
+    - { label: 'Image Parameters', parameters: [flavor, network_id, availability_zone, image_id, key_name] }
+    - { label: 'Host Name Parameters', parameters: [host_name_was_dmgr, host_name_was_node, host_name_ihs, host_name_db2_hadr_primary, host_name_db2_hadr_secondary] }
+    - { label: 'Salt Parameters', parameters: [salt_master_address, salt_api_user, salt_api_pass, salt_environment] }
+    - { label: 'WebSphere Parameters', parameters: [was_admin_gid, was_admin_home, was_admin_username, was_admin_password, was_install_dir, was_profile_dir, im_install_dir, im_shared_dir, was_java7_enabled, was_fixpack, was_java_fixpack, was_sdk_32bit, was_sdk_64bit, was_security_admin_user, was_security_admin_password, was_dmgr_profile_name, was_dmgr_cell_name, was_dmgr_node_name, was_nodeagent_profile_name, was_nodeagent_node_name] }
+    - { label: 'DB2 Parameters', parameters: [db2_cluster_name,db2_database_name,db2_primary_port,db2_secondary_port ] }
+    
+resources:
+  orchestration_wait_condition:
+    type: "AWS::CloudFormation::WaitCondition"
+    depends_on: was_dmgr
+    properties:
+      Handle: { get_resource: orchestration_wait_handle }
+      Timeout: 4000
+
+  orchestration_wait_handle:
+    type: "AWS::CloudFormation::WaitConditionHandle"
+         
+############################
+# WebSphere Dmgr Node
+############################ 
+  was_dmgr:
+    type: OS::Nova::Server
+    properties:
+      networks:
+          - port: { get_resource: was_dmgr_port }
+      name: { get_param: host_name_was_dmgr }
+      image: {get_param: image_id }
+      key_name: { get_param: key_name }
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      user_data_format: RAW
+      user_data: {get_resource: was_dmgr_init}
+      
+  was_dmgr_port__floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_network_id }
+      port_id: { get_resource: was_dmgr_port }
+
+  was_dmgr_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network_id }
+      
+  was_dmgr_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: bootstrap_salt}
+      - config: {get_resource: assign_roles_was_dmgr}
+      - config: {get_resource: update_etc_host_was_dmgr}
+
+  assign_roles_was_dmgr:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            cat > /etc/salt/grains << EOF
+            environment:
+              $ENV
+            pattern:
+              $WORKLOAD_AUTOMATION
+            roles:
+              - $ROLES_1
+              - $ROLES_2
+            stack:
+              $STACK_ID
+            EOF
+            sleep 30
+            service salt-minion stop
+            sleep 15
+            service salt-minion start
+          params:
+            $ENV: { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ROLES_1: ibm_im_v1x_linux
+            $ROLES_2: ibm_websphere_applicationsvr_v855_linux_dmgr
+            $STACK_ID: { get_param: "OS::stack_id" }
+
+  update_etc_host_was_dmgr:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            sed -i '/$Node01_Hostname/d' /etc/hosts
+            echo "$Node01_IP_address $Node01_Hostname.ibmpmc.com $Node01_Hostname" >> /etc/hosts
+            echo "$Node02_IP_address $Node02_Hostname.ibmpmc.com $Node02_Hostname" >> /etc/hosts
+          params:
+            $Node01_Hostname: { get_param: host_name_was_dmgr }
+            $Node02_Hostname: { get_param: host_name_was_node }
+            $Node01_IP_address: { get_attr: [was_dmgr_port,fixed_ips, 0, ip_address]}
+            $Node02_IP_address: { get_attr: [was_node_port,fixed_ips, 0, ip_address]}
+
+############################
+# WebSphere Managed Node
+############################
+  was_node:
+    type: OS::Nova::Server
+    properties:
+      networks:
+          - port: { get_resource: was_node_port }
+      name: { get_param: host_name_was_node }
+      image: {get_param: image_id }
+      key_name: { get_param: key_name }
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      user_data_format: RAW
+      user_data: {get_resource: was_node_init}
+
+  was_node_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network_id }
+      
+  was_node_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: bootstrap_salt}
+      - config: {get_resource: assign_roles_was_node}
+      - config: {get_resource: update_etc_host_server_was_node}
+      - config: {get_resource: create_pillar_file}
+      - config: {get_resource: run_orchestration}
+
+  update_etc_host_server_was_node:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            sed -i '/$Node02_Hostname/d' /etc/hosts
+            echo "$Node01_IP_address $Node01_Hostname.ibmpmc.com $Node01_Hostname" >> /etc/hosts
+            echo "$Node02_IP_address $Node02_Hostname.ibmpmc.com $Node02_Hostname" >> /etc/hosts
+          params:
+            $Node01_Hostname: { get_param: host_name_was_dmgr }
+            $Node02_Hostname: { get_param: host_name_was_node }
+            $Node01_IP_address: { get_attr: [was_dmgr_port,fixed_ips, 0, ip_address]}
+            $Node02_IP_address: { get_attr: [was_node_port,fixed_ips, 0, ip_address]}
+
+  assign_roles_was_node:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            cat > /etc/salt/grains << EOF
+            environment:
+              $ENV
+            pattern:
+              $WORKLOAD_AUTOMATION
+            roles:
+              - $ROLES_1
+              - $ROLES_2
+            stack:
+              $STACK_ID
+            EOF
+            sleep 30
+            service salt-minion stop
+            sleep 15
+            service salt-minion start
+          params:
+            $ENV: { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ROLES_1: ibm_im_v1x_linux
+            $ROLES_2: ibm_websphere_applicationsvr_v855_linux_node
+            $STACK_ID: { get_param: "OS::stack_id" }
+
+  run_orchestration:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            if [ -f /etc/lsb-release ]; then
+              # Workaround for broken heat-cfn tools
+              apt-get update -y
+              apt-get remove heat-cfntools -y
+              apt-get install python-boto python-pbr python-psutil openjdk-7-jre-headless -y
+              cd /tmp
+              curl "http://security.ubuntu.com/ubuntu/pool/universe/h/heat-cfntools/heat-cfntools_1.2.7-2_all.deb" -O
+              dpkg -i /tmp/heat-cfntools_1.2.7-2_all.deb
+            fi
+            
+            /opt/saltstack/embedded/bin/salt-wrapper.py orchestrate_heat $SALT_API_USER $SALT_API_PASS \
+              --environment $ENV \
+              --automation $WORKLOAD_AUTOMATION \
+              --orchestration $ORCHESTRATION \
+              --wait_url '$WAIT_URL' \
+              --stack_id $STACK_ID \
+              --pillar_file /tmp/pillar.yaml \
+              --pillar stack_id=$STACK_ID 
+          params:
+            $SALT_API_USER: { get_param: salt_api_user}
+            $SALT_API_PASS: { get_param: salt_api_pass}
+            $ENV:           { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ORCHESTRATION: ibm_webstack
+            $STACK_ID:      { get_param: "OS::stack_id" }
+            $WAIT_URL:      { get_resource: orchestration_wait_handle }
+ 
+  create_pillar_file:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+
+            cat << EOF > /tmp/pillar.yaml
+            ibm:
+              sw_repo_root: http://192.168.0.29
+              im1x:
+                install_dir: $IM_Install_Dir
+                expandArea: '/rds/expandArea/im1x'
+                archive: 'agent.installer.linux.gtk.x86_64_1.7.3000.20140521_1925.zip'
+                hash: 'md5=8747b8bd2a6063d59e7fbeb7a865d720'
+              ihs855:
+                os_users:
+                  httpd:
+                    password: '$6$/IpccBUVh3uFkZIQ$DdZV2zpRl0RP2VVEXXMmsy3v7fu5E9ybRv7HEqHl20Urohg5J3Cz5JmshM.BSqvQIOpWL5Vrmk7JrRs.8Xcgd.'
+                  httpd_admin:
+                    password: '$6$/IpccBUVh3uFkZIQ$DdZV2zpRl0RP2VVEXXMmsy3v7fu5E9ybRv7HEqHl20Urohg5J3Cz5JmshM.BSqvQIOpWL5Vrmk7JrRs.8Xcgd.'
+                paths:
+                  # Install directory of InstallationManager
+                  im_install_dir: $IM_Install_Dir
+                install_wasplugin: true
+                server_admin_password: 'Zaq12wsx!'
+                ssl_keystore_password: 'Zaq12wsx!'
+              wasv855:
+                users:
+                  wasadmin:
+                    gid: $Was_Admin_Gid
+                    home: $Was_Admin_Home
+                    name: $Was_Admin_Username
+                    password: $Was_Admin_Password
+                paths:
+                  # Install directory of websphere
+                  install_dir: $Was_Install_Dir
+                  # Profile directory of websphere node
+                  profile_dir: $Was_Profile_Dir
+                   # Install directory of InstallationManager
+                  im_install_dir: $IM_Install_Dir
+                  im_shared_dir: $IM_Shared_Dir
+                  # Expand area for extracting the package
+                  expand_area: /tmp/cbps/expand_area
+                settings:
+                  java7:
+                    enabled: $Java7_Enabled
+                  was_fixpack: $Was_Fixpack
+                  java_fixpack: $Java_Fixpack
+                  features:
+                    com.ibm.sdk.6_32bit: $Sdk_32bit
+                    com.ibm.sdk.6_64bit: $Sdk_64bit
+                  security:
+                    admin_user: $Security_Admin_User
+                    admin_user_password: $Security_Admin_Password
+                  # DMGR profile configuration
+                  dmgr_profile:
+                    profile_name: $Dmgr_Profile_Name
+                    cell: $Dmgr_Cell_Name
+                    nodename: $Dmgr_Node_Name
+                  node_profile:
+                    profile_name: $Nodeagent_Profile_Name
+                    dmgr_cell: $Dmgr_Cell_Name
+                    nodename: $Nodeagent_Node_Name
+                    dmgr_host: $Dmgr_Hostname
+              db2:
+                v10x:
+                  hadr:
+                    db2_cluster_name: $DB2_CLUSTER_NAME
+                    hosts:
+                      primary:
+                        hostname: $PRIMARY_HOSTNAME
+                        public_ip: $PRIMARY_PUBLIC_IP
+                      secondary:
+                        hostname: $SECONDARY_HOSTNAME
+                        public_ip: $SECONDARY_PUBLIC_IP
+                    databases:
+                      $DATABASE:
+                        primary_port: $PRIMARY_PORT
+                        secondary_port: $SECONDARY_PORT
+                        LOGARCHMETH1: $LOGARCHMETH1
+                        HADR_SYNCMODE: $HADR_SYNCMODE
+            EOF
+          params:
+            $Dmgr_Hostname: { get_param:  host_name_was_dmgr }
+            $Was_Admin_Gid: { get_param: was_admin_gid }
+            $Was_Admin_Home: { get_param: was_admin_home }
+            $Was_Admin_Username: { get_param: was_admin_username }
+            $Was_Admin_Password: { get_param: was_admin_password }
+            $Was_Install_Dir: { get_param: was_install_dir }
+            $Was_Profile_Dir: { get_param: was_profile_dir }
+            $IM_Install_Dir: { get_param: im_install_dir }
+            $IM_Shared_Dir: {get_param: im_shared_dir }
+            $Java7_Enabled: {get_param: was_java7_enabled }
+            $Was_Fixpack: {get_param: was_fixpack }
+            $Java_Fixpack: {get_param: was_java_fixpack }
+            $Sdk_32bit: {get_param: was_sdk_32bit }
+            $Sdk_64bit: {get_param: was_sdk_64bit }
+            $Dmgr_Profile_Name: { get_param: was_dmgr_profile_name }
+            $Dmgr_Cell_Name: { get_param: was_dmgr_cell_name }
+            $Dmgr_Node_Name: { get_param: was_dmgr_node_name }
+            $Nodeagent_Profile_Name: {get_param: was_nodeagent_profile_name }
+            $Nodeagent_Node_Name: { get_param: was_nodeagent_node_name }
+            $Security_Admin_User: { get_param: was_security_admin_user }
+            $Security_Admin_Password: { get_param: was_security_admin_password }
+            $DB2_CLUSTER_NAME:    { get_param: db2_cluster_name }
+            $PRIMARY_HOSTNAME:    { get_param: host_name_db2_hadr_primary }
+            $PRIMARY_PUBLIC_IP:   { get_attr:  [hadr_primary_port,fixed_ips, 0, ip_address] }
+            $SECONDARY_HOSTNAME:  { get_param: host_name_db2_hadr_secondary }
+            $SECONDARY_PUBLIC_IP: { get_attr:  [hadr_secondary_port,fixed_ips, 0, ip_address] }
+            $DATABASE:            { get_param: db2_database_name }
+            $PRIMARY_PORT:        { get_param: db2_primary_port }
+            $SECONDARY_PORT:      { get_param: db2_secondary_port }
+            $LOGARCHMETH1:        LOGRETAIN
+            $HADR_SYNCMODE:       NEARSYNC
+                  
+############################
+# IHS Server
+############################
+  ihs:
+    type: OS::Nova::Server
+    properties:
+      networks:
+          - port: { get_resource: ihs_port }
+      name: { get_param:  host_name_ihs }
+      image: {get_param: image_id }
+      availability_zone: { get_param: availability_zone }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data_format: RAW
+      user_data: {get_resource: ihs_init}
+
+  ihs_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network_id }
+      
+  ihs_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: bootstrap_salt}
+      - config: {get_resource: assign_roles_ihs}
+      - config: {get_resource: update_etc_host_server_ihs_node}
+
+  assign_roles_ihs:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            cat > /etc/salt/grains << EOF
+            environment:
+              $ENV
+            pattern:
+              $WORKLOAD_AUTOMATION
+            roles:
+              - $ROLES_1
+              - $ROLES_2
+            stack:
+              $STACK_ID
+            EOF
+            sleep 30
+            service salt-minion stop
+            sleep 15
+            service salt-minion start
+          params:
+            $ENV: { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ROLES_1: ibm_im_v1x_linux
+            $ROLES_2: ibm_ihs_v855_linux
+            $STACK_ID: { get_param: "OS::stack_id" }
+
+            
+  update_etc_host_server_ihs_node:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            sed -i '/$Node02_Hostname/d' /etc/hosts
+              sed -i '/$IHS_Hostname/d' /etc/hosts
+              echo "$IHS_IP_address $IHS_Hostname" >> /etc/hosts
+          params:
+            $IHS_Hostname: { get_param: host_name_ihs }
+            $IHS_IP_address: { get_attr: [ihs_port,fixed_ips, 0, ip_address]}
+            
+#####################################################
+#  DB2 Resources
+#####################################################
+  hadr_primary:
+    type: OS::Nova::Server
+    properties:
+      networks:
+          - port: { get_resource: hadr_primary_port }
+      name: { get_param: host_name_db2_hadr_primary}
+      image: { get_param: image_id } 
+      flavor: c2.m8.s40
+      key_name: { get_param: key_name }
+      user_data_format: RAW
+      user_data: { get_resource: hadr_primary_init }
+
+  hadr_primary_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network_id }
+
+  hadr_primary_init:
+    type: OS::Heat::MultipartMime
+    properties:
+       parts:
+        - config: { get_resource: bootstrap_salt }
+        - config: { get_resource: assign_grains_hadr_primary }
+        - config: { get_resource: update_etc_host_server_db2_hadr_primary_node }
+        
+  assign_grains_hadr_primary:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            cat > /etc/salt/grains << EOF
+            environment:
+              $ENV
+            pattern:
+              $WORKLOAD_AUTOMATION
+            roles:
+              - $ROLES
+            stack:
+              $STACK_ID
+            db2_cluster_role:
+              primary
+            EOF
+            service salt-minion stop
+            sleep 15
+            service salt-minion start
+          params:
+            $ENV:      { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ROLES:    db2_cluster_primary
+            $STACK_ID: { get_param: "OS::stack_id" }
+            
+  update_etc_host_server_db2_hadr_primary_node:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            if [ -f /etc/lsb-release ]; then
+              # Workaround for broken heat-cfn tools
+              apt-get update -y
+              apt-get remove heat-cfntools -y
+              apt-get install python-boto python-pbr python-psutil openjdk-7-jre-headless -y
+              cd /tmp
+              curl "http://security.ubuntu.com/ubuntu/pool/universe/h/heat-cfntools/heat-cfntools_1.2.7-2_all.deb" -O
+              dpkg -i /tmp/heat-cfntools_1.2.7-2_all.deb
+            fi
+            
+            sed -i '/$Node02_Hostname/d' /etc/hosts
+              sed -i '/$IHS_Hostname/d' /etc/hosts
+              echo "$IHS_IP_address $IHS_Hostname" >> /etc/hosts
+          params:
+            $IHS_Hostname: { get_param: host_name_db2_hadr_primary }
+            $IHS_IP_address: { get_attr: [hadr_primary_port,fixed_ips, 0, ip_address]}
+            
+            
+############################
+# HADR Secondary Resources
+############################
+      
+  hadr_secondary:
+    type: OS::Nova::Server
+    depends_on: hadr_primary
+    properties:
+      networks:
+          - port: { get_resource: hadr_secondary_port  }
+      name: { get_param: host_name_db2_hadr_secondary }
+      image: { get_param: image_id } 
+      flavor: c2.m8.s40
+      key_name: { get_param: key_name }
+      user_data_format: RAW
+      user_data: { get_resource: hadr_secondary_init }
+
+  hadr_secondary_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: network_id }
+
+  hadr_secondary_init:
+    type: OS::Heat::MultipartMime
+    properties:
+       parts:
+         - config: { get_resource: bootstrap_salt }
+         - config: { get_resource: assign_grains_hadr_secondary }
+         - config: { get_resource: update_etc_host_server_db2_hadr_secondary_node}
+
+  assign_grains_hadr_secondary:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash 
+            cat > /etc/salt/grains << EOF 
+            environment:
+              $ENV
+            pattern:
+              $WORKLOAD_AUTOMATION
+            roles:
+              - $ROLES
+            stack:
+              $STACK_ID
+            db2_cluster_role:
+              secondary
+            EOF
+            service salt-minion stop
+            sleep 15
+            service salt-minion start
+          params:
+            $ENV:      { get_param: salt_environment }
+            $WORKLOAD_AUTOMATION: ibm_webstack
+            $ROLES:    db2_cluster_secondary
+            $STACK_ID: { get_param: "OS::stack_id" }
+            
+  update_etc_host_server_db2_hadr_secondary_node:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            sed -i '/$Node02_Hostname/d' /etc/hosts
+              sed -i '/$IHS_Hostname/d' /etc/hosts
+              echo "$IHS_IP_address $IHS_Hostname" >> /etc/hosts
+          params:
+            $IHS_Hostname: { get_param: host_name_db2_hadr_secondary }
+            $IHS_IP_address: { get_attr: [hadr_secondary_port,fixed_ips, 0, ip_address]}
+
+############################
+#  General Scripts
+############################
+  bootstrap_salt:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            if [ -f /etc/redhat-release ]; then
+              rpm -Uvh "http://192.168.0.29/salt/saltstack-latest-el6.x86_64.rpm"
+            elif [ -f /etc/lsb-release ]; then
+              curl "http://192.168.0.29/salt/saltstack-latest-trusty.x86_64.deb" -O
+              dpkg -i saltstack-latest-trusty.x86_64.deb
+            fi
+            chkconfig salt-minion on
+            mkdir -p /etc/salt/pki/minion
+
+            # Default log_level warning            
+            cat > /etc/salt/minion << EOF
+            log_level: info
+            master:
+              - $SALT_MASTER
+            id: $STACK_ID-`hostname -s`
+            mine_functions:
+              network.interfaces: []
+              grains.items: []
+            mine_interval: 1
+            EOF
+            
+            service salt-minion stop
+            sleep 10
+            service salt-minion start
+            sleep 30
+            /opt/saltstack/embedded/bin/salt-wrapper.py register $SALT_API_USER $SALT_API_PASS
+          params:
+            $SALT_API_USER: { get_param: salt_api_user}
+            $SALT_API_PASS: { get_param: salt_api_pass}
+            $STACK_ID: { get_param: "OS::stack_id" }
+            $SALT_MASTER: { get_param: salt_master_address }
+            
+outputs:
+  blueprint_url:
+    description: Blueprint Origin URL
+    value:  https://patterns.oneibmcloud.com/landscaper/view/projects?open=ucdpadmin_00000000_0000_0000_0000_000000000002-OrionContent/default/open_tier_lamp/ibm_webstack.yml
+    
