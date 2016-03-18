@@ -1,7 +1,7 @@
 heat_template_version: 2013-05-23
 
 description: >
-  A document-based template to configure IBM Web Stack comprising, IHS, WebSphere Dmgr and managed node, DB2 HADR
+  A blueprint that defines the IBM Web Stack pattern. This stack includes a high-availability IBM WebSphere App Server, an IBM HTTP server, and a high-availability IBM DB2 database.
 
 parameters:
 
