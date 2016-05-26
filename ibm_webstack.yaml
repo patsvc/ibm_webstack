@@ -41,7 +41,7 @@ parameters:
   salt_master_address:
     type: string
     description: Hostname/IP address of the salt-master
-    default: 192.168.0.34
+    default: 134.168.48.59
     
   salt_api_user:
     type: string
@@ -57,12 +57,13 @@ parameters:
   salt_environment:
     type: string
     description: The environment the nodes are part of
-    default: test
+    default: base
     constraints:
       - allowed_values:
         - dev
         - test
         - prod
+        - base
 
 ############################
 # Server names
@@ -170,7 +171,7 @@ parameters:
   was_security_admin_password:
     type: string
     description: web console admin password
-    default: Zaq12wsX
+    default: Zaq12wsx
 
   was_dmgr_profile_name:
     type: string
@@ -767,8 +768,8 @@ resources:
           template: |
             #!/usr/bin/env bash
             sed -i '/$Node02_Hostname/d' /etc/hosts
-              sed -i '/$IHS_Hostname/d' /etc/hosts
-              echo "$IHS_IP_address $IHS_Hostname" >> /etc/hosts
+            sed -i '/$IHS_Hostname/d' /etc/hosts
+            echo "$IHS_IP_address $IHS_Hostname" >> /etc/hosts
           params:
             $IHS_Hostname: { get_param: host_name_db2_hadr_secondary }
             $IHS_IP_address: { get_attr: [hadr_secondary_port,fixed_ips, 0, ip_address]}
