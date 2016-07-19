@@ -52,7 +52,6 @@ parameters:
     type: string
     description: Password for connecting to Salt API
     hidden: True
-    default: pM0dularc
      
   salt_environment:
     type: string
